@@ -1,5 +1,7 @@
 use minifb::{Key, Window, WindowOptions};
 use std::fmt;
+use std::thread::sleep;
+use std::time::Duration;
 
 const WIDTH: usize = 800;
 const HEIGHT: usize = 600;
@@ -7,8 +9,6 @@ const HEIGHT: usize = 600;
 fn main() {
     let mut canvas = Canvas::new(WIDTH, HEIGHT);
 
-    canvas.fill(0x008080);
-    canvas.draw_wireframe(&Point::new(-200, -250), &Point::new(200, 50), &Point::new(20, 250), 0xFFFFFF);
 
     let mut window = Window::new(
         "Test - ESC to exit",
@@ -18,8 +18,40 @@ fn main() {
     )
     .unwrap_or_else(|e| panic!("{}", e));
 
+    let mut p1 = Point::new(-200, -250);
+    let mut p2 = Point::new(200, 50);
+    let mut p3 = Point::new(20, 250);
+
+    let mut v1 = Point::new(2, 1);
+    let mut v2 = Point::new(1, 2);
+    let mut v3 = Point::new(1, 3);
+
     while window.is_open() && !window.is_key_down(Key::Escape) {
+        canvas.fill(0x008080);
+        canvas.draw_wireframe(&p1, &p2, &p3, 0xFFFFFF);
         window.update_with_buffer(&canvas.data, WIDTH, HEIGHT).unwrap();
+
+        update_point_and_velocity(&mut p1, &mut v1);
+        update_point_and_velocity(&mut p2, &mut v2);
+        update_point_and_velocity(&mut p3, &mut v3);
+
+        sleep(Duration::from_millis(30));
+    }
+}
+
+fn update_point_and_velocity(p: &mut Point, v: &mut Point) {
+    let hw = WIDTH / 2;
+    let hh = HEIGHT / 2;
+
+    p.x += v.x;
+    if p.x.unsigned_abs() as usize >= hw {
+        v.x *= -1;
+        p.x += v.x;
+    }
+    p.y += v.y;
+    if p.y.unsigned_abs() as usize >= hh {
+        v.y *= -1;
+        p.y += v.y;
     }
 }
 
@@ -89,9 +121,7 @@ impl Canvas {
             } else {
                 (p0, p1)
             };
-            println!("{:?} {:?}", p0, p1);
             let xs = interpolate(p0.y, p0.x as f32, p1.y, p1.x as f32);
-            println!("{:?}", xs);
             for y in p0.y..p1.y + 1 {
                 self.set_pixel(xs[(y - p0.y) as usize] as i32, y, color);
             }
