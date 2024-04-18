@@ -20,18 +20,18 @@ fn main() {
     )
     .unwrap_or_else(|e| panic!("{}", e));
 
-    let mut p1 = Point::new(-200, -250);
-    let mut p2 = Point::new(200, 50);
-    let mut p3 = Point::new(20, 250);
+    let mut p1 = Point::new3(-200, -250, 0.3);
+    let mut p2 = Point::new3(200, 50, 0.1);
+    let mut p3 = Point::new3(20, 250, 1.0);
 
     let mut v1 = Point::new(2, 1);
     let mut v2 = Point::new(1, 2);
     let mut v3 = Point::new(1, 3);
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
-        canvas.fill(0x008080);
-        // canvas.draw_wireframe(&p1, &p2, &p3, 0xFFFFFF);
-        canvas.draw_filled_triangle(&p1, &p2, &p3, 0xFFFFFF);
+        canvas.fill(0xFFFFFF);
+        canvas.draw_shaded_triangle(&p1, &p2, &p3, 0x00FF00);
+        canvas.draw_wireframe(&p1, &p2, &p3, 0);
         window
             .update_with_buffer(&canvas.data, WIDTH, HEIGHT)
             .unwrap();
@@ -57,6 +57,41 @@ fn update_point_and_velocity(p: &mut Point, v: &mut Point) {
     if p.y.unsigned_abs() as usize >= hh {
         v.y *= -1;
         p.y += v.y;
+    }
+}
+
+struct Color {
+    r: u8,
+    g: u8,
+    b: u8,
+    h: f32,
+}
+
+impl Color {
+    fn rgb(r: u8, g: u8, b: u8) -> Color {
+        Color { r, g, b, h: 1.0 }
+    }
+
+    fn mul(&mut self, h: f32) {
+        self.h *= h;
+    }
+}
+
+impl From<Color> for u32 {
+    fn from(c: Color) -> Self {
+        let r = ((c.r as f32 * c.h) as u32) << 16;
+        let g = ((c.g as f32 * c.h) as u32) << 8;
+        let b = (c.b as f32 * c.h) as u32;
+        r | g | b
+    }
+}
+
+impl From<u32> for Color {
+    fn from(c: u32) -> Self {
+        let r = (c >> 16) as u8;
+        let g = (c >> 8) as u8;
+        let b = c as u8;
+        Color::rgb(r, g, b)
     }
 }
 
@@ -121,6 +156,7 @@ impl Canvas {
         self.draw_line(p2, p0, color);
     }
 
+    #[allow(dead_code)]
     fn draw_filled_triangle(&mut self, p0: &Point, p1: &Point, p2: &Point, color: u32) {
         let mut p0 = p0;
         let mut p1 = p1;
@@ -159,7 +195,72 @@ impl Canvas {
             let x_start = x_left[(y - p0.y) as usize] as i32;
             let x_end = x_right[(y - p0.y) as usize] as i32;
             for x in x_start..x_end + 1 {
-                self.set_pixel(x, y, color)
+                self.set_pixel(x, y, color);
+            }
+        }
+    }
+
+    fn draw_shaded_triangle(&mut self, p0: &Point, p1: &Point, p2: &Point, color: u32) {
+        let mut p0 = p0;
+        let mut p1 = p1;
+        let mut p2 = p2;
+
+        // Sort the points so that y0 <= y1 <= y2
+        if p1.y < p0.y {
+            std::mem::swap(&mut p1, &mut p0);
+        }
+        if p2.y < p0.y {
+            std::mem::swap(&mut p2, &mut p0);
+        }
+        if p2.y < p1.y {
+            std::mem::swap(&mut p2, &mut p1);
+        }
+
+        // Compute the x coordinates and h values of the triangle edges
+        let mut x01 = interpolate(p0.y, p0.x as f32, p1.y, p1.x as f32);
+        let mut h01 = interpolate(p0.y, p0.h, p1.y, p1.h);
+
+        let x12 = interpolate(p1.y, p1.x as f32, p2.y, p2.x as f32);
+        let h12 = interpolate(p1.y, p1.h, p2.y, p2.h);
+
+        let x02 = interpolate(p0.y, p0.x as f32, p2.y, p2.x as f32);
+        let h02 = interpolate(p0.y, p0.h, p2.y, p2.h);
+
+        // Concatenate the short sides
+        x01.pop();
+        let x012 = [x01, x12].concat();
+
+        h01.pop();
+        let h012 = [h01, h12].concat();
+
+        // Determine which is left and which is right
+        let m = x012.len() / 2;
+        let mut x_left = x02;
+        let mut x_right = x012;
+        let mut h_left = h02;
+        let mut h_right = h012;
+
+        if x_right[m] < x_left[m] {
+            std::mem::swap(&mut x_left, &mut x_right);
+            std::mem::swap(&mut h_left, &mut h_right);
+        }
+
+        // Draw the horizontal segments
+        for y in p0.y..p2.y + 1 {
+            let x_l = x_left[(y - p0.y) as usize] as i32;
+            let x_r = x_right[(y - p0.y) as usize] as i32;
+
+            let h_segment = interpolate(
+                x_l,
+                h_left[(y - p0.y) as usize],
+                x_r,
+                h_right[(y - p0.y) as usize],
+            );
+            for x in x_l..x_r + 1 {
+                let mut shaded_color: Color = color.into();
+                let h = h_segment[(x - x_l) as usize];
+                shaded_color.mul(h);
+                self.set_pixel(x, y, shaded_color.into());
             }
         }
     }

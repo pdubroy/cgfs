@@ -2,11 +2,15 @@
 pub struct Point {
     pub x: i32,
     pub y: i32,
+    pub h: f32,
 }
 
 impl Point {
     pub fn new(x: i32, y: i32) -> Point {
-        Point { x, y }
+        Point { x, y, h: 1.0 }
+    }
+    pub fn new3(x: i32, y: i32, h: f32) -> Point {
+        Point { x, y, h }
     }
 }
 
