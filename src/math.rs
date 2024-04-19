@@ -1,16 +1,31 @@
 #[derive(Debug)]
-pub struct Point {
+pub struct Point2 {
     pub x: i32,
     pub y: i32,
     pub h: f32,
 }
 
-impl Point {
-    pub fn new(x: i32, y: i32) -> Point {
-        Point { x, y, h: 1.0 }
+impl Point2 {
+    pub fn xy(x: i32, y: i32) -> Point2 {
+        Point2 { x, y, h: 1.0 }
     }
-    pub fn new3(x: i32, y: i32, h: f32) -> Point {
-        Point { x, y, h }
+
+    #[allow(dead_code)]
+    pub fn xyh(x: i32, y: i32, h: f32) -> Point2 {
+        Point2 { x, y, h }
+    }
+}
+
+#[derive(Debug)]
+pub struct Vertex {
+    pub x: f32,
+    pub y: f32,
+    pub z: f32,
+}
+
+impl Vertex {
+    pub fn new(x: f32, y: f32, z: f32) -> Vertex {
+        Vertex { x, y, z }
     }
 }
 

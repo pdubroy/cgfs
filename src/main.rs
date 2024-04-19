@@ -4,7 +4,7 @@ use std::thread::sleep;
 use std::time::Duration;
 
 mod math;
-use math::{interpolate, Point};
+use math::{interpolate, Point2, Vertex};
 
 const WIDTH: usize = 800;
 const HEIGHT: usize = 600;
@@ -20,31 +20,36 @@ fn main() {
     )
     .unwrap_or_else(|e| panic!("{}", e));
 
-    let mut p1 = Point::new3(-200, -250, 0.3);
-    let mut p2 = Point::new3(200, 50, 0.1);
-    let mut p3 = Point::new3(20, 250, 1.0);
+    // let mut p1 = Point2::xyh(-200, -250, 0.3);
+    // let mut p2 = Point2::xyh(200, 50, 0.1);
+    // let mut p3 = Point2::xyh(20, 250, 1.0);
 
-    let mut v1 = Point::new(2, 1);
-    let mut v2 = Point::new(1, 2);
-    let mut v3 = Point::new(1, 3);
+    // let mut v1 = Point2::xy(2, 1);
+    // let mut v2 = Point2::xy(1, 2);
+    // let mut v3 = Point2::xy(1, 3);
+
+    let scene = Scene::new(1, 1, 1.0);
+
+    scene.draw(&mut canvas);
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
-        canvas.fill(0xFFFFFF);
-        canvas.draw_shaded_triangle(&p1, &p2, &p3, 0x00FF00);
-        canvas.draw_wireframe(&p1, &p2, &p3, 0);
+        // canvas.fill(0xFFFFFF);
+        // canvas.draw_shaded_triangle(&p1, &p2, &p3, 0x00FF00);
+        // canvas.draw_wireframe(&p1, &p2, &p3, 0);
         window
             .update_with_buffer(&canvas.data, WIDTH, HEIGHT)
             .unwrap();
 
-        update_point_and_velocity(&mut p1, &mut v1);
-        update_point_and_velocity(&mut p2, &mut v2);
-        update_point_and_velocity(&mut p3, &mut v3);
+        // update_point_and_velocity(&mut p1, &mut v1);
+        // update_point_and_velocity(&mut p2, &mut v2);
+        // update_point_and_velocity(&mut p3, &mut v3);
 
         sleep(Duration::from_millis(30));
     }
 }
 
-fn update_point_and_velocity(p: &mut Point, v: &mut Point) {
+#[allow(dead_code)]
+fn update_point_and_velocity(p: &mut Point2, v: &mut Point2) {
     let hw = WIDTH / 2;
     let hh = HEIGHT / 2;
 
@@ -72,6 +77,7 @@ impl Color {
         Color { r, g, b, h: 1.0 }
     }
 
+    #[allow(dead_code)]
     fn mul(&mut self, h: f32) {
         self.h *= h;
     }
@@ -95,6 +101,113 @@ impl From<u32> for Color {
     }
 }
 
+struct Scene {
+    width: usize,
+    height: usize,
+    d: f32, // distance from the camera to the screen
+}
+
+impl Scene {
+    fn new(width: usize, height: usize, d: f32) -> Scene {
+        Scene { width, height, d }
+    }
+
+    fn viewport_to_canvas(&self, canvas: &Canvas, x: f32, y: f32) -> Point2 {
+        Point2::xy(
+            (x * canvas.width as f32 / self.width as f32) as i32,
+            (y * canvas.height as f32 / self.height as f32) as i32,
+        )
+    }
+
+    fn project_vertex(&self, canvas: &Canvas, v: &Vertex) -> Point2 {
+        self.viewport_to_canvas(canvas, v.x * self.d / v.z, v.y * self.d / v.z)
+    }
+
+    fn draw(&self, canvas: &mut Canvas) {
+        let blue: u32 = Color::rgb(0, 0, 255).into();
+        let red: u32 = Color::rgb(255, 0, 0).into();
+        let green: u32 = Color::rgb(0, 255, 0).into();
+
+        // The four "front" vertices
+        let v_af = Vertex::new(-2.0, -0.5, 5.0);
+        let v_bf = Vertex::new(-2.0, 0.5, 5.0);
+        let v_cf = Vertex::new(-1.0, 0.5, 5.0);
+        let v_df = Vertex::new(-1.0, -0.5, 5.0);
+
+        // The four "back" vertices
+        let v_ab = Vertex::new(-2.0, -0.5, 6.0);
+        let v_bb = Vertex::new(-2.0, 0.5, 6.0);
+        let v_cb = Vertex::new(-1.0, 0.5, 6.0);
+        let v_db = Vertex::new(-1.0, -0.5, 6.0);
+
+        // The front face
+        canvas.draw_line(
+            &self.project_vertex(canvas, &v_af),
+            &self.project_vertex(canvas, &v_bf),
+            blue,
+        );
+        canvas.draw_line(
+            &self.project_vertex(canvas, &v_bf),
+            &self.project_vertex(canvas, &v_cf),
+            blue,
+        );
+        canvas.draw_line(
+            &self.project_vertex(canvas, &v_cf),
+            &self.project_vertex(canvas, &v_df),
+            blue,
+        );
+        canvas.draw_line(
+            &self.project_vertex(canvas, &v_df),
+            &self.project_vertex(canvas, &v_af),
+            blue,
+        );
+
+        // The back face
+        canvas.draw_line(
+            &self.project_vertex(canvas, &v_ab),
+            &self.project_vertex(canvas, &v_bb),
+            red,
+        );
+        canvas.draw_line(
+            &self.project_vertex(canvas, &v_bb),
+            &self.project_vertex(canvas, &v_cb),
+            red,
+        );
+        canvas.draw_line(
+            &self.project_vertex(canvas, &v_cb),
+            &self.project_vertex(canvas, &v_db),
+            red,
+        );
+        canvas.draw_line(
+            &self.project_vertex(canvas, &v_db),
+            &self.project_vertex(canvas, &v_ab),
+            red,
+        );
+
+        // The front-to-back edges
+        canvas.draw_line(
+            &self.project_vertex(canvas, &v_af),
+            &self.project_vertex(canvas, &v_ab),
+            green,
+        );
+        canvas.draw_line(
+            &self.project_vertex(canvas, &v_bf),
+            &self.project_vertex(canvas, &v_bb),
+            green,
+        );
+        canvas.draw_line(
+            &self.project_vertex(canvas, &v_cf),
+            &self.project_vertex(canvas, &v_cb),
+            green,
+        );
+        canvas.draw_line(
+            &self.project_vertex(canvas, &v_df),
+            &self.project_vertex(canvas, &v_db),
+            green,
+        );
+    }
+}
+
 struct Canvas {
     pub data: Vec<u32>,
     pub width: usize,
@@ -110,6 +223,7 @@ impl Canvas {
         }
     }
 
+    #[allow(dead_code)]
     fn fill(&mut self, color: u32) {
         for b in self.data.iter_mut() {
             *b = color;
@@ -133,7 +247,7 @@ impl Canvas {
     // }
 
     #[allow(dead_code)]
-    fn draw_line(&mut self, p0: &Point, p1: &Point, color: u32) {
+    fn draw_line(&mut self, p0: &Point2, p1: &Point2, color: u32) {
         if (p1.x - p0.x).abs() > (p1.y - p0.y).abs() {
             let (p0, p1) = if p0.x > p1.x { (p1, p0) } else { (p0, p1) };
             let ys = interpolate(p0.x, p0.y as f32, p1.x, p1.y as f32);
@@ -150,14 +264,14 @@ impl Canvas {
     }
 
     #[allow(dead_code)]
-    fn draw_wireframe(&mut self, p0: &Point, p1: &Point, p2: &Point, color: u32) {
+    fn draw_wireframe(&mut self, p0: &Point2, p1: &Point2, p2: &Point2, color: u32) {
         self.draw_line(p0, p1, color);
         self.draw_line(p1, p2, color);
         self.draw_line(p2, p0, color);
     }
 
     #[allow(dead_code)]
-    fn draw_filled_triangle(&mut self, p0: &Point, p1: &Point, p2: &Point, color: u32) {
+    fn draw_filled_triangle(&mut self, p0: &Point2, p1: &Point2, p2: &Point2, color: u32) {
         let mut p0 = p0;
         let mut p1 = p1;
         let mut p2 = p2;
@@ -200,7 +314,8 @@ impl Canvas {
         }
     }
 
-    fn draw_shaded_triangle(&mut self, p0: &Point, p1: &Point, p2: &Point, color: u32) {
+    #[allow(dead_code)]
+    fn draw_shaded_triangle(&mut self, p0: &Point2, p1: &Point2, p2: &Point2, color: u32) {
         let mut p0 = p0;
         let mut p1 = p1;
         let mut p2 = p2;
@@ -293,7 +408,7 @@ impl fmt::Display for Canvas {
 mod test {
     use super::*;
 
-    fn canvas_with_filled_triangle(p1: &Point, p2: &Point, p3: &Point) -> Canvas {
+    fn canvas_with_filled_triangle(p1: &Point2, p2: &Point2, p3: &Point2) -> Canvas {
         let mut canvas = Canvas::new(3, 3);
         canvas.draw_filled_triangle(&p1, &p2, &p3, 0xFFFFFF);
         canvas
@@ -302,7 +417,7 @@ mod test {
     #[test]
     fn test_draw_line() {
         let mut canvas = Canvas::new(5, 5);
-        canvas.draw_line(&Point::new(-2, 2), &Point::new(0, -2), 0xFFFFFF);
+        canvas.draw_line(&Point2::xy(-2, 2), &Point2::xy(0, -2), 0xFFFFFF);
         assert_eq!(
             canvas.to_string(),
             "
@@ -319,7 +434,7 @@ X - - - -
     #[test]
     fn test_draw_filled_triangle() {
         let canvas =
-            canvas_with_filled_triangle(&Point::new(-1, 1), &Point::new(0, 0), &Point::new(-1, -1));
+            canvas_with_filled_triangle(&Point2::xy(-1, 1), &Point2::xy(0, 0), &Point2::xy(-1, -1));
         assert_eq!(
             canvas.to_string(),
             "
@@ -330,9 +445,9 @@ X - -
             .trim()
         );
 
-        let p1 = Point::new(-1, 1);
-        let p2 = Point::new(1, 1);
-        let p3 = Point::new(-1, -1);
+        let p1 = Point2::xy(-1, 1);
+        let p2 = Point2::xy(1, 1);
+        let p3 = Point2::xy(-1, -1);
         let canvas = canvas_with_filled_triangle(&p1, &p2, &p3);
         assert_eq!(
             canvas.to_string(),
@@ -373,7 +488,7 @@ X - -
     #[should_panic]
     fn test_filled_triangle_corner_cases() {
         let canvas =
-            canvas_with_filled_triangle(&Point::new(-1, 1), &Point::new(0, 1), &Point::new(1, 1));
+            canvas_with_filled_triangle(&Point2::xy(-1, 1), &Point2::xy(0, 1), &Point2::xy(1, 1));
         // Due to the special case in `interpolate`, this will not produce the expected result.
         assert_eq!(
             canvas.to_string(),
