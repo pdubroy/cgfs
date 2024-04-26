@@ -23,15 +23,16 @@ impl Scene {
         dbg!(self.viewport_to_canvas(canvas, v.x * self.d / v.z, v.y * self.d / v.z))
     }
 
-    pub fn render_object(&self, canvas: &mut Canvas, vertices: &[Vertex], triangles: &[Triangle]) {
+    pub fn render_instance(&self, canvas: &mut Canvas, inst: &Instance) {
         let mut projected = Vec::new();
-        for v in vertices {
-            let mut v_t = *v;
-            v_t.x += -1.5;
-            v_t.z += 7.0;
-            projected.push(self.project_vertex(canvas, v));
+        for v in inst.model.vertices.iter() {
+            let mut v = *v;
+            v.x += inst.position.x;
+            v.y += inst.position.y;
+            v.z += inst.position.z;
+            projected.push(self.project_vertex(canvas, &v));
         }
-        for t in triangles {
+        for t in &inst.model.triangles {
             self.render_triangle(canvas, t, &projected);
         }
     }
@@ -139,7 +140,7 @@ impl Scene {
         let purple: u32 = Color::rgb(255, 0, 255).into();
         let cyan: u32 = Color::rgb(0, 255, 255).into();
 
-        let mut vertices = vec![
+        let vertices = vec![
             Vertex::new(1.0, 1.0, 1.0),
             Vertex::new(-1.0, 1.0, 1.0),
             Vertex::new(-1.0, -1.0, 1.0),
@@ -164,12 +165,20 @@ impl Scene {
             Triangle::new((2, 7, 3), cyan),
         ];
 
-        for vert in vertices.iter_mut() {
-            vert.x += -1.5;
-            vert.z += 7.;
-        }
+        let cube = Model::new(vertices, triangles);
 
-        self.render_object(canvas, &vertices, &triangles);
+        let obj1 = Instance::new(&cube, Vertex::new(-1.5, 0., 7.));
+        let obj2 = Instance::new(&cube, Vertex::new(1.25, 2., 7.5));
+
+        self.render_instance(canvas, &obj1);
+        self.render_instance(canvas, &obj2);
+
+        // for vert in vertices.iter_mut() {
+        //     vert.x += -1.5;
+        //     vert.z += 7.;
+        // }
+
+        // self.render_object(canvas, &vertices, &triangles);
     }
 }
 
@@ -182,5 +191,30 @@ pub struct Triangle {
 impl Triangle {
     pub fn new(v: (usize, usize, usize), color: u32) -> Self {
         Self { v, color }
+    }
+}
+
+pub struct Model {
+    pub vertices: Vec<Vertex>,
+    pub triangles: Vec<Triangle>,
+}
+
+impl Model {
+    pub fn new(vertices: Vec<Vertex>, triangles: Vec<Triangle>) -> Self {
+        Self {
+            vertices,
+            triangles,
+        }
+    }
+}
+
+pub struct Instance<'a> {
+    pub model: &'a Model,
+    pub position: Vertex,
+}
+
+impl<'a> Instance<'a> {
+    pub fn new(model: &'a Model, position: Vertex) -> Self {
+        Self { model, position }
     }
 }

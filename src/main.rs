@@ -9,7 +9,7 @@ use math::{interpolate, Point2};
 mod scene;
 use scene::Scene;
 
-const WIDTH: usize = 800;
+const WIDTH: usize = 600;
 const HEIGHT: usize = 600;
 
 fn main() {
