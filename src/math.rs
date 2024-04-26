@@ -16,7 +16,7 @@ impl Point2 {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct Vertex {
     pub x: f32,
     pub y: f32,

@@ -4,7 +4,10 @@ use std::thread::sleep;
 use std::time::Duration;
 
 mod math;
-use math::{interpolate, Point2, Vertex};
+use math::{interpolate, Point2};
+
+mod scene;
+use scene::Scene;
 
 const WIDTH: usize = 800;
 const HEIGHT: usize = 600;
@@ -29,8 +32,8 @@ fn main() {
     // let mut v3 = Point2::xy(1, 3);
 
     let scene = Scene::new(1, 1, 1.0);
-
-    scene.draw(&mut canvas);
+    // scene.render(&mut canvas);
+    scene.render2(&mut canvas);
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
         // canvas.fill(0xFFFFFF);
@@ -101,113 +104,6 @@ impl From<u32> for Color {
     }
 }
 
-struct Scene {
-    width: usize,
-    height: usize,
-    d: f32, // distance from the camera to the screen
-}
-
-impl Scene {
-    fn new(width: usize, height: usize, d: f32) -> Scene {
-        Scene { width, height, d }
-    }
-
-    fn viewport_to_canvas(&self, canvas: &Canvas, x: f32, y: f32) -> Point2 {
-        Point2::xy(
-            (x * canvas.width as f32 / self.width as f32) as i32,
-            (y * canvas.height as f32 / self.height as f32) as i32,
-        )
-    }
-
-    fn project_vertex(&self, canvas: &Canvas, v: &Vertex) -> Point2 {
-        self.viewport_to_canvas(canvas, v.x * self.d / v.z, v.y * self.d / v.z)
-    }
-
-    fn draw(&self, canvas: &mut Canvas) {
-        let blue: u32 = Color::rgb(0, 0, 255).into();
-        let red: u32 = Color::rgb(255, 0, 0).into();
-        let green: u32 = Color::rgb(0, 255, 0).into();
-
-        // The four "front" vertices
-        let v_af = Vertex::new(-2.0, -0.5, 5.0);
-        let v_bf = Vertex::new(-2.0, 0.5, 5.0);
-        let v_cf = Vertex::new(-1.0, 0.5, 5.0);
-        let v_df = Vertex::new(-1.0, -0.5, 5.0);
-
-        // The four "back" vertices
-        let v_ab = Vertex::new(-2.0, -0.5, 6.0);
-        let v_bb = Vertex::new(-2.0, 0.5, 6.0);
-        let v_cb = Vertex::new(-1.0, 0.5, 6.0);
-        let v_db = Vertex::new(-1.0, -0.5, 6.0);
-
-        // The front face
-        canvas.draw_line(
-            &self.project_vertex(canvas, &v_af),
-            &self.project_vertex(canvas, &v_bf),
-            blue,
-        );
-        canvas.draw_line(
-            &self.project_vertex(canvas, &v_bf),
-            &self.project_vertex(canvas, &v_cf),
-            blue,
-        );
-        canvas.draw_line(
-            &self.project_vertex(canvas, &v_cf),
-            &self.project_vertex(canvas, &v_df),
-            blue,
-        );
-        canvas.draw_line(
-            &self.project_vertex(canvas, &v_df),
-            &self.project_vertex(canvas, &v_af),
-            blue,
-        );
-
-        // The back face
-        canvas.draw_line(
-            &self.project_vertex(canvas, &v_ab),
-            &self.project_vertex(canvas, &v_bb),
-            red,
-        );
-        canvas.draw_line(
-            &self.project_vertex(canvas, &v_bb),
-            &self.project_vertex(canvas, &v_cb),
-            red,
-        );
-        canvas.draw_line(
-            &self.project_vertex(canvas, &v_cb),
-            &self.project_vertex(canvas, &v_db),
-            red,
-        );
-        canvas.draw_line(
-            &self.project_vertex(canvas, &v_db),
-            &self.project_vertex(canvas, &v_ab),
-            red,
-        );
-
-        // The front-to-back edges
-        canvas.draw_line(
-            &self.project_vertex(canvas, &v_af),
-            &self.project_vertex(canvas, &v_ab),
-            green,
-        );
-        canvas.draw_line(
-            &self.project_vertex(canvas, &v_bf),
-            &self.project_vertex(canvas, &v_bb),
-            green,
-        );
-        canvas.draw_line(
-            &self.project_vertex(canvas, &v_cf),
-            &self.project_vertex(canvas, &v_cb),
-            green,
-        );
-        canvas.draw_line(
-            &self.project_vertex(canvas, &v_df),
-            &self.project_vertex(canvas, &v_db),
-            green,
-        );
-    }
-}
-
 struct Canvas {
     pub data: Vec<u32>,
     pub width: usize,
@@ -235,6 +131,9 @@ impl Canvas {
         let hh = self.height / 2;
         let x_norm = x + hw as i32;
         let y_norm = hh as i32 - y;
+        println!("x: {}, y: {}", x, y);
+        println!("x_norm: {}, y_norm: {}", x_norm, y_norm);
+        println!("width: {}, height: {}", self.width, self.height);
         self.data[y_norm as usize * self.width + x_norm as usize] = color;
     }
 
@@ -248,6 +147,7 @@ impl Canvas {
 
     #[allow(dead_code)]
     fn draw_line(&mut self, p0: &Point2, p1: &Point2, color: u32) {
+        println!("draw_line p0: {:?}, p1: {:?}", p0, p1);
         if (p1.x - p0.x).abs() > (p1.y - p0.y).abs() {
             let (p0, p1) = if p0.x > p1.x { (p1, p0) } else { (p0, p1) };
             let ys = interpolate(p0.x, p0.y as f32, p1.x, p1.y as f32);
