@@ -1,4 +1,4 @@
-use crate::math::{Point2, Vertex};
+use crate::math::*;
 use crate::{Canvas, Color};
 
 pub struct Scene {
@@ -18,7 +18,7 @@ impl Scene {
         )
     }
 
-    pub fn project_vertex(&self, canvas: &Canvas, v: &Vertex) -> Point2 {
+    pub fn project_vertex(&self, canvas: &Canvas, v: Vertex) -> Point2 {
         println!("project_vertex {:?}", v);
         dbg!(self.viewport_to_canvas(canvas, v.x * self.d / v.z, v.y * self.d / v.z))
     }
@@ -26,11 +26,8 @@ impl Scene {
     pub fn render_instance(&self, canvas: &mut Canvas, inst: &Instance) {
         let mut projected = Vec::new();
         for v in inst.model.vertices.iter() {
-            let mut v = *v;
-            v.x += inst.position.x;
-            v.y += inst.position.y;
-            v.z += inst.position.z;
-            projected.push(self.project_vertex(canvas, &v));
+            let v = inst.model.transform.apply(*v);
+            projected.push(self.project_vertex(canvas, v));
         }
         for t in &inst.model.triangles {
             self.render_triangle(canvas, t, &projected);
@@ -67,67 +64,67 @@ impl Scene {
 
         // The front face
         canvas.draw_line(
-            &self.project_vertex(canvas, &v_af),
-            &self.project_vertex(canvas, &v_bf),
+            &self.project_vertex(canvas, v_af),
+            &self.project_vertex(canvas, v_bf),
             blue,
         );
         canvas.draw_line(
-            &self.project_vertex(canvas, &v_bf),
-            &self.project_vertex(canvas, &v_cf),
+            &self.project_vertex(canvas, v_bf),
+            &self.project_vertex(canvas, v_cf),
             blue,
         );
         canvas.draw_line(
-            &self.project_vertex(canvas, &v_cf),
-            &self.project_vertex(canvas, &v_df),
+            &self.project_vertex(canvas, v_cf),
+            &self.project_vertex(canvas, v_df),
             blue,
         );
         canvas.draw_line(
-            &self.project_vertex(canvas, &v_df),
-            &self.project_vertex(canvas, &v_af),
+            &self.project_vertex(canvas, v_df),
+            &self.project_vertex(canvas, v_af),
             blue,
         );
 
         // The back face
         canvas.draw_line(
-            &self.project_vertex(canvas, &v_ab),
-            &self.project_vertex(canvas, &v_bb),
+            &self.project_vertex(canvas, v_ab),
+            &self.project_vertex(canvas, v_bb),
             red,
         );
         canvas.draw_line(
-            &self.project_vertex(canvas, &v_bb),
-            &self.project_vertex(canvas, &v_cb),
+            &self.project_vertex(canvas, v_bb),
+            &self.project_vertex(canvas, v_cb),
             red,
         );
         canvas.draw_line(
-            &self.project_vertex(canvas, &v_cb),
-            &self.project_vertex(canvas, &v_db),
+            &self.project_vertex(canvas, v_cb),
+            &self.project_vertex(canvas, v_db),
             red,
         );
         canvas.draw_line(
-            &self.project_vertex(canvas, &v_db),
-            &self.project_vertex(canvas, &v_ab),
+            &self.project_vertex(canvas, v_db),
+            &self.project_vertex(canvas, v_ab),
             red,
         );
 
         // The front-to-back edges
         canvas.draw_line(
-            &self.project_vertex(canvas, &v_af),
-            &self.project_vertex(canvas, &v_ab),
+            &self.project_vertex(canvas, v_af),
+            &self.project_vertex(canvas, v_ab),
             green,
         );
         canvas.draw_line(
-            &self.project_vertex(canvas, &v_bf),
-            &self.project_vertex(canvas, &v_bb),
+            &self.project_vertex(canvas, v_bf),
+            &self.project_vertex(canvas, v_bb),
             green,
         );
         canvas.draw_line(
-            &self.project_vertex(canvas, &v_cf),
-            &self.project_vertex(canvas, &v_cb),
+            &self.project_vertex(canvas, v_cf),
+            &self.project_vertex(canvas, v_cb),
             green,
         );
         canvas.draw_line(
-            &self.project_vertex(canvas, &v_df),
-            &self.project_vertex(canvas, &v_db),
+            &self.project_vertex(canvas, v_df),
+            &self.project_vertex(canvas, v_db),
             green,
         );
     }
@@ -197,6 +194,7 @@ impl Triangle {
 pub struct Model {
     pub vertices: Vec<Vertex>,
     pub triangles: Vec<Triangle>,
+    pub transform: Transform,
 }
 
 impl Model {
@@ -204,6 +202,7 @@ impl Model {
         Self {
             vertices,
             triangles,
+            transform: Transform::default(),
         }
     }
 }
