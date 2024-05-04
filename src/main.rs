@@ -26,25 +26,21 @@ fn main() {
     )
     .unwrap_or_else(|e| panic!("{}", e));
 
-    // let mut p1 = Point2::xyh(-200, -250, 0.3);
-    // let mut p2 = Point2::xyh(200, 50, 0.1);
-    // let mut p3 = Point2::xyh(20, 250, 1.0);
-
-    // let mut v1 = Point2::xy(2, 1);
-    // let mut v2 = Point2::xy(1, 2);
-    // let mut v3 = Point2::xy(1, 3);
-
     let mut scene = Scene::new(1, 1);
-    // scene.render(&mut canvas);
-    //    scene.render2(&mut canvas);
     init_cube_scene(&mut scene);
-    scene.render(&mut canvas);
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
+        if window.is_key_down(Key::Left) {
+            scene.camera.position.x -= 0.1;
+        } else if window.is_key_down(Key::Right) {
+            scene.camera.position.x += 0.1;
+        }
+
+        scene.render(&mut canvas);
+
         window
             .update_with_buffer(&canvas.data, WIDTH, HEIGHT)
             .unwrap();
-
         sleep(Duration::from_millis(30));
     }
 }
@@ -88,31 +84,19 @@ impl Canvas {
         }
     }
 
-    #[allow(dead_code)]
-    fn fill(&mut self, color: u32) {
+    pub fn fill(&mut self, color: u32) {
         for b in self.data.iter_mut() {
             *b = color;
         }
     }
 
-    fn set_pixel(&mut self, x: i32, y: i32, color: u32) {
+    pub fn set_pixel(&mut self, x: i32, y: i32, color: u32) {
         let hw = self.width / 2;
         let hh = self.height / 2;
         let x_norm = x + hw as i32;
         let y_norm = hh as i32 - y;
-        // println!("x: {}, y: {}", x, y);
-        // println!("x_norm: {}, y_norm: {}", x_norm, y_norm);
-        // println!("width: {}, height: {}", self.width, self.height);
         self.data[y_norm as usize * self.width + x_norm as usize] = color;
     }
-
-    // fn get_pixel(&mut self, x: i32, y: i32) -> u32 {
-    //     let hw = self.width / 2;
-    //     let hh = self.height / 2;
-    //     let x_norm = x + hw as i32;
-    //     let y_norm = hh as i32 - y;
-    //     self.data[y_norm as usize * self.width + x_norm as usize]
-    // }
 
     #[allow(dead_code)]
     fn draw_line(&mut self, p0: &Point2, p1: &Point2, color: u32) {
@@ -224,13 +208,6 @@ pub fn init_cube_scene(scene: &mut Scene) {
     );
     scene.instances.push(obj1);
     scene.instances.push(obj2);
-
-    // for vert in vertices.iter_mut() {
-    //     vert.x += -1.5;
-    //     vert.z += 7.;
-    // }
-
-    // self.render_object(canvas, &vertices, &triangles);
 }
 
 #[cfg(test)]

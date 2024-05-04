@@ -16,15 +16,22 @@ pub struct Scene {
     pub height: usize,
     pub models: Vec<Model>,
     pub instances: Vec<Instance>,
+    pub camera: Camera,
 }
 
 impl Scene {
     pub fn new(width: usize, height: usize) -> Self {
+        let camera = Camera {
+            position: Point3::new(-3., 1., 2.),
+            orientation: Matrix4::from_rotation_y(PI / 6.),
+        };
+
         Scene {
             width,
             height,
             models: Vec::new(),
             instances: Vec::new(),
+            camera,
         }
     }
 
@@ -69,11 +76,9 @@ impl Scene {
     // From Listing 10-5.
     #[allow(dead_code)]
     pub fn render(&self, canvas: &mut Canvas) {
-        let camera = Camera {
-            position: Point3::new(-3., 1., 2.),
-            orientation: Matrix4::from_rotation_y(PI / 6.),
-        };
-        let m_camera = camera.orientation.transpose() * Matrix4::from_translation(-camera.position);
+        canvas.fill(0);
+        let m_camera =
+            self.camera.orientation.transpose() * Matrix4::from_translation(-self.camera.position);
         for inst in &self.instances {
             let m = m_camera * inst.transform;
             self.render_model(inst.model.as_ref(), m, canvas);
