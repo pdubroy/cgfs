@@ -51,17 +51,6 @@ impl Scene {
         )
     }
 
-    // pub fn render_instance(&self, canvas: &mut Canvas, inst: &Instance) {
-    //     let mut projected = Vec::new();
-    //     for v in inst.model.vertices.iter() {
-    //         let v = inst.model.transform.apply(*v);
-    //         projected.push(self.project_vertex(canvas, v));
-    //     }
-    //     for t in &inst.model.triangles {
-    //         self.render_triangle(canvas, t, &projected);
-    //     }
-    // }
-
     // From Listing 10-5.
     pub fn render_model(&self, model: &Model, transform: Matrix4, canvas: &mut Canvas) {
         let mut projected = Vec::new();
@@ -198,7 +187,6 @@ impl Triangle {
 pub struct Model {
     pub vertices: Vec<Point3>,
     pub triangles: Vec<Triangle>,
-    pub transform: Transform,
 }
 
 impl Model {
@@ -206,7 +194,6 @@ impl Model {
         Self {
             vertices,
             triangles,
-            transform: Transform::default(),
         }
     }
 

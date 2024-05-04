@@ -232,29 +232,6 @@ impl From<[f32; 4]> for Vector4 {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct Transform {
-    pub scale: f32,
-    pub rotation: f32,
-    pub translation: Point3,
-}
-
-impl Transform {
-    pub fn apply(&self, vertex: Point3) -> Point3 {
-        vertex
-    }
-}
-
-impl Default for Transform {
-    fn default() -> Self {
-        Self {
-            scale: 1.,
-            rotation: 0.,
-            translation: Point3::default(),
-        }
-    }
-}
-
 // Convention: values of the independent variable i are always integers, as
 // they represent pixels, while the values of the dependent variable d
 // are always floating point values, as they represent values of a generic
