@@ -1,36 +1,82 @@
+use std::f32::consts::PI;
+use std::rc::Rc;
+
 use crate::math::*;
 use crate::{Canvas, Color};
+
+const PROJECTION_PLANE_Z: f32 = 1.;
+
+pub struct Camera {
+    pub position: Point3,
+    pub orientation: Matrix4,
+}
 
 pub struct Scene {
     pub width: usize,
     pub height: usize,
-    pub d: f32, // distance from the camera to the screen
+    pub models: Vec<Model>,
+    pub instances: Vec<Instance>,
 }
 
 impl Scene {
-    pub fn new(width: usize, height: usize, d: f32) -> Self {
-        Scene { width, height, d }
+    pub fn new(width: usize, height: usize) -> Self {
+        Scene {
+            width,
+            height,
+            models: Vec::new(),
+            instances: Vec::new(),
+        }
     }
+
     pub fn viewport_to_canvas(&self, canvas: &Canvas, x: f32, y: f32) -> Point2 {
-        Point2::xy(
+        Point2::new(
             (x * canvas.width as f32 / self.width as f32) as i32,
             (y * canvas.height as f32 / self.height as f32) as i32,
         )
     }
 
-    pub fn project_vertex(&self, canvas: &Canvas, v: Vertex) -> Point2 {
-        println!("project_vertex {:?}", v);
-        dbg!(self.viewport_to_canvas(canvas, v.x * self.d / v.z, v.y * self.d / v.z))
+    pub fn project_vertex(&self, canvas: &Canvas, v: Point3) -> Point2 {
+        // println!("project_vertex {:?}", v);
+        self.viewport_to_canvas(
+            canvas,
+            v.x * PROJECTION_PLANE_Z / v.z,
+            v.y * PROJECTION_PLANE_Z / v.z,
+        )
     }
 
-    pub fn render_instance(&self, canvas: &mut Canvas, inst: &Instance) {
+    // pub fn render_instance(&self, canvas: &mut Canvas, inst: &Instance) {
+    //     let mut projected = Vec::new();
+    //     for v in inst.model.vertices.iter() {
+    //         let v = inst.model.transform.apply(*v);
+    //         projected.push(self.project_vertex(canvas, v));
+    //     }
+    //     for t in &inst.model.triangles {
+    //         self.render_triangle(canvas, t, &projected);
+    //     }
+    // }
+
+    // From Listing 10-5.
+    pub fn render_model(&self, model: &Model, transform: Matrix4, canvas: &mut Canvas) {
         let mut projected = Vec::new();
-        for v in inst.model.vertices.iter() {
-            let v = inst.model.transform.apply(*v);
-            projected.push(self.project_vertex(canvas, v));
+        for v in &model.vertices {
+            projected.push(self.project_vertex(canvas, transform * *v))
         }
-        for t in &inst.model.triangles {
+        for t in &model.triangles {
             self.render_triangle(canvas, t, &projected);
+        }
+    }
+
+    // From Listing 10-5.
+    #[allow(dead_code)]
+    pub fn render(&self, canvas: &mut Canvas) {
+        let camera = Camera {
+            position: Point3::new(-3., 1., 2.),
+            orientation: Matrix4::from_rotation_y(PI / 6.),
+        };
+        let m_camera = camera.orientation.transpose() * Matrix4::from_translation(-camera.position);
+        for inst in &self.instances {
+            let m = m_camera * inst.transform;
+            self.render_model(inst.model.as_ref(), m, canvas);
         }
     }
 
@@ -44,23 +90,22 @@ impl Scene {
         );
     }
 
-    #[allow(dead_code)]
-    pub fn render(&self, canvas: &mut Canvas) {
+    pub fn render1(&self, canvas: &mut Canvas) {
         let blue: u32 = Color::rgb(0, 0, 255).into();
         let red: u32 = Color::rgb(255, 0, 0).into();
         let green: u32 = Color::rgb(0, 255, 0).into();
 
         // The four "front" vertices
-        let v_af = Vertex::new(-2.0, -0.5, 5.0);
-        let v_bf = Vertex::new(-2.0, 0.5, 5.0);
-        let v_cf = Vertex::new(-1.0, 0.5, 5.0);
-        let v_df = Vertex::new(-1.0, -0.5, 5.0);
+        let v_af = Point3::new(-2.0, -0.5, 5.0);
+        let v_bf = Point3::new(-2.0, 0.5, 5.0);
+        let v_cf = Point3::new(-1.0, 0.5, 5.0);
+        let v_df = Point3::new(-1.0, -0.5, 5.0);
 
         // The four "back" vertices
-        let v_ab = Vertex::new(-2.0, -0.5, 6.0);
-        let v_bb = Vertex::new(-2.0, 0.5, 6.0);
-        let v_cb = Vertex::new(-1.0, 0.5, 6.0);
-        let v_db = Vertex::new(-1.0, -0.5, 6.0);
+        let v_ab = Point3::new(-2.0, -0.5, 6.0);
+        let v_bb = Point3::new(-2.0, 0.5, 6.0);
+        let v_cb = Point3::new(-1.0, 0.5, 6.0);
+        let v_db = Point3::new(-1.0, -0.5, 6.0);
 
         // The front face
         canvas.draw_line(
@@ -128,55 +173,6 @@ impl Scene {
             green,
         );
     }
-
-    pub fn render2(&self, canvas: &mut Canvas) {
-        let blue: u32 = Color::rgb(0, 0, 255).into();
-        let red: u32 = Color::rgb(255, 0, 0).into();
-        let green: u32 = Color::rgb(0, 255, 0).into();
-        let yellow: u32 = Color::rgb(255, 255, 0).into();
-        let purple: u32 = Color::rgb(255, 0, 255).into();
-        let cyan: u32 = Color::rgb(0, 255, 255).into();
-
-        let vertices = vec![
-            Vertex::new(1.0, 1.0, 1.0),
-            Vertex::new(-1.0, 1.0, 1.0),
-            Vertex::new(-1.0, -1.0, 1.0),
-            Vertex::new(1.0, -1.0, 1.0),
-            Vertex::new(1.0, 1.0, -1.0),
-            Vertex::new(-1.0, 1.0, -1.0),
-            Vertex::new(-1.0, -1.0, -1.0),
-            Vertex::new(1.0, -1.0, -1.0),
-        ];
-        let triangles = vec![
-            Triangle::new((0, 1, 2), red),
-            Triangle::new((0, 2, 3), red),
-            Triangle::new((4, 0, 3), green),
-            Triangle::new((4, 3, 7), green),
-            Triangle::new((5, 4, 7), blue),
-            Triangle::new((5, 7, 6), blue),
-            Triangle::new((1, 5, 6), yellow),
-            Triangle::new((1, 6, 2), yellow),
-            Triangle::new((4, 5, 1), purple),
-            Triangle::new((4, 1, 0), purple),
-            Triangle::new((2, 6, 7), cyan),
-            Triangle::new((2, 7, 3), cyan),
-        ];
-
-        let cube = Model::new(vertices, triangles);
-
-        let obj1 = Instance::new(&cube, Vertex::new(-1.5, 0., 7.));
-        let obj2 = Instance::new(&cube, Vertex::new(1.25, 2., 7.5));
-
-        self.render_instance(canvas, &obj1);
-        self.render_instance(canvas, &obj2);
-
-        // for vert in vertices.iter_mut() {
-        //     vert.x += -1.5;
-        //     vert.z += 7.;
-        // }
-
-        // self.render_object(canvas, &vertices, &triangles);
-    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -186,34 +182,116 @@ pub struct Triangle {
 }
 
 impl Triangle {
-    pub fn new(v: (usize, usize, usize), color: u32) -> Self {
-        Self { v, color }
+    pub fn new(v: (usize, usize, usize), color: impl Into<u32>) -> Self {
+        Self {
+            v,
+            color: color.into(),
+        }
     }
 }
 
 pub struct Model {
-    pub vertices: Vec<Vertex>,
+    pub vertices: Vec<Point3>,
     pub triangles: Vec<Triangle>,
     pub transform: Transform,
 }
 
 impl Model {
-    pub fn new(vertices: Vec<Vertex>, triangles: Vec<Triangle>) -> Self {
+    pub fn new(vertices: Vec<Point3>, triangles: Vec<Triangle>) -> Self {
         Self {
             vertices,
             triangles,
             transform: Transform::default(),
         }
     }
+
+    pub fn cube() -> Self {
+        let vertices = vec![
+            Point3::new(1.0, 1.0, 1.0),
+            Point3::new(-1.0, 1.0, 1.0),
+            Point3::new(-1.0, -1.0, 1.0),
+            Point3::new(1.0, -1.0, 1.0),
+            Point3::new(1.0, 1.0, -1.0),
+            Point3::new(-1.0, 1.0, -1.0),
+            Point3::new(-1.0, -1.0, -1.0),
+            Point3::new(1.0, -1.0, -1.0),
+        ];
+        let triangles = vec![
+            Triangle::new((0, 1, 2), Color::red()),
+            Triangle::new((0, 2, 3), Color::red()),
+            Triangle::new((4, 0, 3), Color::green()),
+            Triangle::new((4, 3, 7), Color::green()),
+            Triangle::new((5, 4, 7), Color::blue()),
+            Triangle::new((5, 7, 6), Color::blue()),
+            Triangle::new((1, 5, 6), Color::yellow()),
+            Triangle::new((1, 6, 2), Color::yellow()),
+            Triangle::new((4, 5, 1), Color::purple()),
+            Triangle::new((4, 1, 0), Color::purple()),
+            Triangle::new((2, 6, 7), Color::cyan()),
+            Triangle::new((2, 7, 3), Color::cyan()),
+        ];
+
+        Self::new(vertices, triangles)
+    }
 }
 
-pub struct Instance<'a> {
-    pub model: &'a Model,
-    pub position: Vertex,
+pub struct Instance {
+    pub model: Rc<Model>,
+    pub transform: Matrix4,
 }
 
-impl<'a> Instance<'a> {
-    pub fn new(model: &'a Model, position: Vertex) -> Self {
-        Self { model, position }
+impl Instance {
+    pub fn new(model: Rc<Model>, position: Point3, orientation: Matrix4, scale: f32) -> Self {
+        let transform =
+            Matrix4::from_translation(position) * orientation * Matrix4::from_scale(scale);
+        Self { model, transform }
+    }
+}
+
+impl Color {
+    fn rgb(r: u8, g: u8, b: u8) -> Color {
+        Color { r, g, b, h: 1.0 }
+    }
+
+    #[allow(dead_code)]
+    fn mul(&mut self, h: f32) {
+        self.h *= h;
+    }
+
+    pub fn blue() -> Color {
+        Color::rgb(0, 0, 255)
+    }
+    pub fn red() -> Color {
+        Color::rgb(255, 0, 0)
+    }
+    pub fn green() -> Color {
+        Color::rgb(0, 255, 0)
+    }
+    pub fn yellow() -> Color {
+        Color::rgb(255, 255, 0)
+    }
+    pub fn purple() -> Color {
+        Color::rgb(255, 0, 255)
+    }
+    pub fn cyan() -> Color {
+        Color::rgb(0, 255, 255)
+    }
+}
+
+impl From<Color> for u32 {
+    fn from(c: Color) -> Self {
+        let r = ((c.r as f32 * c.h) as u32) << 16;
+        let g = ((c.g as f32 * c.h) as u32) << 8;
+        let b = (c.b as f32 * c.h) as u32;
+        r | g | b
+    }
+}
+
+impl From<u32> for Color {
+    fn from(c: u32) -> Self {
+        let r = (c >> 16) as u8;
+        let g = (c >> 8) as u8;
+        let b = c as u8;
+        Color::rgb(r, g, b)
     }
 }

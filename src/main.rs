@@ -1,13 +1,16 @@
 use minifb::{Key, Window, WindowOptions};
 use std::fmt;
+use std::rc::Rc;
 use std::thread::sleep;
 use std::time::Duration;
 
 mod math;
-use math::{interpolate, Point2};
+use math::*;
 
 mod scene;
-use scene::Scene;
+use scene::*;
+
+use std::f32::consts::PI;
 
 const WIDTH: usize = 600;
 const HEIGHT: usize = 600;
@@ -31,21 +34,16 @@ fn main() {
     // let mut v2 = Point2::xy(1, 2);
     // let mut v3 = Point2::xy(1, 3);
 
-    let scene = Scene::new(1, 1, 1.0);
+    let mut scene = Scene::new(1, 1);
     // scene.render(&mut canvas);
-    scene.render2(&mut canvas);
+    //    scene.render2(&mut canvas);
+    init_cube_scene(&mut scene);
+    scene.render(&mut canvas);
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
-        // canvas.fill(0xFFFFFF);
-        // canvas.draw_shaded_triangle(&p1, &p2, &p3, 0x00FF00);
-        // canvas.draw_wireframe(&p1, &p2, &p3, 0);
         window
             .update_with_buffer(&canvas.data, WIDTH, HEIGHT)
             .unwrap();
-
-        // update_point_and_velocity(&mut p1, &mut v1);
-        // update_point_and_velocity(&mut p2, &mut v2);
-        // update_point_and_velocity(&mut p3, &mut v3);
 
         sleep(Duration::from_millis(30));
     }
@@ -75,36 +73,7 @@ struct Color {
     h: f32,
 }
 
-impl Color {
-    fn rgb(r: u8, g: u8, b: u8) -> Color {
-        Color { r, g, b, h: 1.0 }
-    }
-
-    #[allow(dead_code)]
-    fn mul(&mut self, h: f32) {
-        self.h *= h;
-    }
-}
-
-impl From<Color> for u32 {
-    fn from(c: Color) -> Self {
-        let r = ((c.r as f32 * c.h) as u32) << 16;
-        let g = ((c.g as f32 * c.h) as u32) << 8;
-        let b = (c.b as f32 * c.h) as u32;
-        r | g | b
-    }
-}
-
-impl From<u32> for Color {
-    fn from(c: u32) -> Self {
-        let r = (c >> 16) as u8;
-        let g = (c >> 8) as u8;
-        let b = c as u8;
-        Color::rgb(r, g, b)
-    }
-}
-
-struct Canvas {
+pub struct Canvas {
     pub data: Vec<u32>,
     pub width: usize,
     pub height: usize,
@@ -131,9 +100,9 @@ impl Canvas {
         let hh = self.height / 2;
         let x_norm = x + hw as i32;
         let y_norm = hh as i32 - y;
-        println!("x: {}, y: {}", x, y);
-        println!("x_norm: {}, y_norm: {}", x_norm, y_norm);
-        println!("width: {}, height: {}", self.width, self.height);
+        // println!("x: {}, y: {}", x, y);
+        // println!("x_norm: {}, y_norm: {}", x_norm, y_norm);
+        // println!("width: {}, height: {}", self.width, self.height);
         self.data[y_norm as usize * self.width + x_norm as usize] = color;
     }
 
@@ -213,72 +182,6 @@ impl Canvas {
             }
         }
     }
-
-    #[allow(dead_code)]
-    fn draw_shaded_triangle(&mut self, p0: &Point2, p1: &Point2, p2: &Point2, color: u32) {
-        let mut p0 = p0;
-        let mut p1 = p1;
-        let mut p2 = p2;
-
-        // Sort the points so that y0 <= y1 <= y2
-        if p1.y < p0.y {
-            std::mem::swap(&mut p1, &mut p0);
-        }
-        if p2.y < p0.y {
-            std::mem::swap(&mut p2, &mut p0);
-        }
-        if p2.y < p1.y {
-            std::mem::swap(&mut p2, &mut p1);
-        }
-
-        // Compute the x coordinates and h values of the triangle edges
-        let mut x01 = interpolate(p0.y, p0.x as f32, p1.y, p1.x as f32);
-        let mut h01 = interpolate(p0.y, p0.h, p1.y, p1.h);
-
-        let x12 = interpolate(p1.y, p1.x as f32, p2.y, p2.x as f32);
-        let h12 = interpolate(p1.y, p1.h, p2.y, p2.h);
-
-        let x02 = interpolate(p0.y, p0.x as f32, p2.y, p2.x as f32);
-        let h02 = interpolate(p0.y, p0.h, p2.y, p2.h);
-
-        // Concatenate the short sides
-        x01.pop();
-        let x012 = [x01, x12].concat();
-
-        h01.pop();
-        let h012 = [h01, h12].concat();
-
-        // Determine which is left and which is right
-        let m = x012.len() / 2;
-        let mut x_left = x02;
-        let mut x_right = x012;
-        let mut h_left = h02;
-        let mut h_right = h012;
-
-        if x_right[m] < x_left[m] {
-            std::mem::swap(&mut x_left, &mut x_right);
-            std::mem::swap(&mut h_left, &mut h_right);
-        }
-
-        // Draw the horizontal segments
-        for y in p0.y..p2.y + 1 {
-            let x_l = x_left[(y - p0.y) as usize] as i32;
-            let x_r = x_right[(y - p0.y) as usize] as i32;
-
-            let h_segment = interpolate(
-                x_l,
-                h_left[(y - p0.y) as usize],
-                x_r,
-                h_right[(y - p0.y) as usize],
-            );
-            for x in x_l..x_r + 1 {
-                let mut shaded_color: Color = color.into();
-                let h = h_segment[(x - x_l) as usize];
-                shaded_color.mul(h);
-                self.set_pixel(x, y, shaded_color.into());
-            }
-        }
-    }
 }
 
 impl fmt::Display for Canvas {
@@ -304,6 +207,32 @@ impl fmt::Display for Canvas {
     }
 }
 
+pub fn init_cube_scene(scene: &mut Scene) {
+    let cube = Rc::new(Model::cube());
+
+    let obj1 = Instance::new(
+        Rc::clone(&cube),
+        Point3::new(-1.5, 0., 7.),
+        Matrix4::identity(),
+        0.75,
+    );
+    let obj2 = Instance::new(
+        Rc::clone(&cube),
+        Point3::new(1.25, 2.5, 7.5),
+        Matrix4::from_rotation_y(195. * PI / 2.),
+        1.0,
+    );
+    scene.instances.push(obj1);
+    scene.instances.push(obj2);
+
+    // for vert in vertices.iter_mut() {
+    //     vert.x += -1.5;
+    //     vert.z += 7.;
+    // }
+
+    // self.render_object(canvas, &vertices, &triangles);
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -317,7 +246,7 @@ mod test {
     #[test]
     fn test_draw_line() {
         let mut canvas = Canvas::new(5, 5);
-        canvas.draw_line(&Point2::xy(-2, 2), &Point2::xy(0, -2), 0xFFFFFF);
+        canvas.draw_line(&Point2::new(-2, 2), &Point2::new(0, -2), 0xFFFFFF);
         assert_eq!(
             canvas.to_string(),
             "
@@ -333,8 +262,11 @@ X - - - -
 
     #[test]
     fn test_draw_filled_triangle() {
-        let canvas =
-            canvas_with_filled_triangle(&Point2::xy(-1, 1), &Point2::xy(0, 0), &Point2::xy(-1, -1));
+        let canvas = canvas_with_filled_triangle(
+            &Point2::new(-1, 1),
+            &Point2::new(0, 0),
+            &Point2::new(-1, -1),
+        );
         assert_eq!(
             canvas.to_string(),
             "
@@ -345,9 +277,9 @@ X - -
             .trim()
         );
 
-        let p1 = Point2::xy(-1, 1);
-        let p2 = Point2::xy(1, 1);
-        let p3 = Point2::xy(-1, -1);
+        let p1 = Point2::new(-1, 1);
+        let p2 = Point2::new(1, 1);
+        let p3 = Point2::new(-1, -1);
         let canvas = canvas_with_filled_triangle(&p1, &p2, &p3);
         assert_eq!(
             canvas.to_string(),
@@ -387,8 +319,11 @@ X - -
     #[test]
     #[should_panic]
     fn test_filled_triangle_corner_cases() {
-        let canvas =
-            canvas_with_filled_triangle(&Point2::xy(-1, 1), &Point2::xy(0, 1), &Point2::xy(1, 1));
+        let canvas = canvas_with_filled_triangle(
+            &Point2::new(-1, 1),
+            &Point2::new(0, 1),
+            &Point2::new(1, 1),
+        );
         // Due to the special case in `interpolate`, this will not produce the expected result.
         assert_eq!(
             canvas.to_string(),
